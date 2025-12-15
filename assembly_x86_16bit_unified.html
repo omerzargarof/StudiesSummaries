@@ -1,0 +1,740 @@
+
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>אסמבלי x86 16‑ביט — צ'יט־שיט מאוחד: רגיסטרים, סגמנטים, FLAGS, Jcc ודוגמאות</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.7; margin: 0; background: #f7f8fb; color: #222; }
+    header { background: #0d6efd; color: #fff; padding: 24px; }
+    header h1 { margin: 0 0 6px; font-size: 1.9em; }
+    header p { margin: 0; opacity: .95; }
+    main { max-width: 1024px; margin: 24px auto; background: #fff; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    nav { background: #eef3ff; border: 1px solid #dfe7ff; padding: 12px 16px; margin-bottom: 24px; }
+    nav a { margin-inline: 8px; }
+    h2 { color: #0d3b66; margin-top: 0; }
+    h3 { color: #1b4b8c; }
+    .section { margin-bottom: 36px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+    th, td { border: 1px solid #dde3ea; padding: 8px 10px; vertical-align: top; }
+    th { background: #f2f6fb; }
+    .example-title { font-weight: bold; margin-top: 8px; }
+    code, pre { direction: ltr; unicode-bidi: embed; }
+    pre { background: #f5f7fa; border: 1px solid #e5e9ef; padding: 12px; overflow-x: auto; }
+    footer { text-align: center; padding: 24px; color: #666; }
+		.sticky {
+  position: sticky;
+  top: 0;
+  background: white; /* כדי שלא יכסה טקסט מתחת */
+  padding: 10px;
+  z-index: 100;
+}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>אסמבלי x86 16‑ביט — צ'יט־שיט מאוחד ומפורט</h1>
+    <p>מותאם לחומר הלימוד ב־Real Mode: רגיסטרים 16‑ביט, סגמנטים קלאסיים, FLAGS/Jcc ודוגמאות קוד עם הערות.</p>
+  </header>
+
+  <main>
+    <nav>
+      <h1><strong>תוכן עניינים:</strong> <br> </h1>
+      <big> <a href="#gprs16">רגיסטרים כלליים (16‑ביט)</a> </big> <br>
+	  <small><a href="#AX">AX</a> ,  <a href="#BX">BX</a> ,  <a href="#CX">CX</a> ,  <a href="#DX">DX</a></small>
+	  <br>
+      <big><a href="#special16">רגיסטרים מיוחדים</a></big> <br>
+	  <small><a href="#IP">IP</a> , <a href="#Flags">דגלים</a></small>
+	  ·	<br>	  
+      <big><a href="#segments16">סגמנטים</a> ·</big>
+	  	<br>	  
+	<small><a href="#CS">CS</a> ,  <a href="#DS">DS</a> ,  <a href="#SS">SS</a> ,  <a href="#ES">ES</a></small>
+	  <br>
+      <!--a href="#addressing16">מודל כתובות</a--> 
+      <!--a href="#jcc16">טבלת Jcc</a-->
+     <big><a href="#cheatsheet16">פקודות חישוב</a></big>
+	  <br>	  
+	<small><a href="#ADD">ADD — חיבור</a> ,  <a href="#DS">SUB — חיסור</a> ,  <a href="#SS">INC — הגדלה ב-1</a> 
+	,  <a href="#ES">DEC — הקטנה ב-1</a> ,  <a href="#ES">MUL — כפל ללא סימן</a> ,  <a href="#ES">IMUL — כפל עם סימן</a>
+ ,  <a href="#ES">DIV — חילוק ללא סימן</a> ,  <a href="#ES">IDIV — חילוק עם סימן</a> ,  <a href="#ES">IDIV — חילוק עם סימן</a>
+  ,  <a href="#ES">IDIV — חילוק עם סימן</a>
+   <br><big><a href="#cheatsheet16">פקודות זרימה</a></big><br>
+   <small><a href="#JMP">JMP — קפיצה בלתי מותנית</a> ,  <a href="#CMP">CMP — השוואה</a> ,  <a href="#LOOP">LOOP — לולאה</a>
+   ,  <a href="#END">END — סיום לולאה</a></small>
+
+ </small>
+
+    </nav>
+
+    <!-- ===== GPRs 16-bit ===== -->
+    <section id="gprs16" class="section">
+      <h2 class="sticky">רגיסטרים כלליים ב־x86 (16‑ביט)</h2>
+
+      <h3 id="AX">AX — Accumulator</h3>
+      <table>
+        <tr><th>שם</th><td>AX (AL/AH)</td></tr>
+        <tr><th>גודל</th><td>16 ביט (AL/AH — 8 ביט נמוך/גבוה)</td></tr>
+        <tr><th>שימוש</th><td>אקומולציה; יעד ברירת מחדל לתוצאות אריתמטיות; משתתף ב־MUL/DIV</td></tr>
+        <tr><th>הסבר</th><td>AX הוא הרגיסטר המרכזי לפעולות אריתמטיות רבות; כאשר הוראה לא מציינת יעד, התוצאה נשמרת לרוב ב־AX. בנוסף, ב־MUL/DIV של 8/16‑ביט, AX משמש כרגיסטר תוצאה/דיבידנד, ולכן קריטי לתפעול נכון של כפל וחילוק.</td></tr>
+      </table>
+      <div class="example-title">דוגמה:</div>
+      <pre><code>mov ax, 5        ; טוען 5 ל-AX
+add ax, 3        ; מוסיף 3 → AX=8 (תוצאה נשמרת באקומולטר)
+      </code></pre>
+
+      <h3 id="BX">BX — Base</h3>
+      <table>
+        <tr><th>שם</th><td>BX (BL/BH)</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>בסיס לאפקטיב אד्रेसינג; משתתף בצורות כתובת [BX+SI], [BX+DI] ועוד</td></tr>
+        <tr><th>הסבר</th><td>BX משמש כבסיס לחישוב כתובות אפקטיביות של נתונים במבנים/מערכים. ניתן לצרף אליו רגיסטרי אינדקס כמו SI/DI ולהוסיף היסט (disp) כדי להגיע לאיברים ספציפיים.</td></tr>
+      </table>
+      <div class="example-title">דוגמה:</div>
+      <pre><code>mov bx, table     ; BX←offset של תחילת הטבלה
+mov al, [bx+4]    ; קורא את הבייט השני (offset 4) ל-AL
+      </code></pre>
+
+      <h3 id="CX">CX — Count</h3>
+      <table>
+        <tr><th>שם</th><td>CX (CL/CH)</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מונה לולאות (LOOP); מונה REP*; CL — מונה הזזות</td></tr>
+        <tr><th>הסבר</th><td>CX משמש כמונה טבעי להוראות LOOP/REP, ומופחת אוטומטית עד 0 ע"י ההוראות. החלק הנמוך CL משמש כמספר ביטים להזזה בהוראות SHL/SHR/SAR/ROL/ROR, ולכן חשוב להטעין בו את מספר ההזזות.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (לולאה):</div>
+      <pre><code>mov cx, 3        ; נבצע פעולה 3 פעמים
+L1:
+  ; ... קוד כלשהו ...
+  loop L1        ; CX-- ; קפיצה אם CX!=0
+      </code></pre>
+
+      <h3 id="DX">DX — Data</h3>
+      <table>
+        <tr><th>שם</th><td>DX (DL/DH)</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>חלק גבוה בתוצאות MUL/DIV; I/O בפלטפורמות ישנות</td></tr>
+        <tr><th>הסבר</th><td>בכפל/חילוק 16‑ביט, התוצאה מפוצלת בין DX:AX — כאשר DX מחזיק את החלק הגבוה או את השארית (בחילוק). זה מאפשר לבצע אריתמטיקה ברוחב כפול ללא איבוד מידע.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (חילוק 16‑ביט):</div>
+      <pre><code>xor dx, dx       ; DX=0 — הכנה לדיבידנד 16‑ביט
+mov ax, 200      ; דיבידנד
+mov bx, 9        ; מחלק
+div bx           ; AX=22 (商), DX=2 (שארית)
+      </code></pre>
+
+      <!--h3>SI — Source Index</h3>
+      <table>
+        <tr><th>שם</th><td>SI</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מצביע מקור לפקודות מחרוזות (MOVS/CMPS/LODS)</td></tr>
+        <tr><th>הסבר</th><td>SI מצביע למקור ב־DS בעת ביצוע הוראות מחרוזות, והמעבד מעדכן אותו אוטומטית קדימה/אחורה בהתאם ל־DF. כך ניתן לבצע העתקות/השוואות בזיכרון ללא לולאה מפורשת.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (העתקת בתים):</div>
+      <pre><code>mov si, src      ; מקור — DS:SI
+mov di, dst      ; יעד — ES:DI
+mov cx, 4        ; נספור 4 בתים
+cld              ; DF=0 — ננוע קדימה
+rep movsb        ; מעתיק CX בתים מ-DS:SI אל ES:DI
+      </code></pre>
+
+      <h3>DI — Destination Index</h3>
+      <table>
+        <tr><th>שם</th><td>DI</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מצביע יעד לפקודות מחרוזות (MOVS/STOS)</td></tr>
+        <tr><th>הסבר</th><td>DI מצביע ליעד ב־ES, ומעודכן אוטומטית בפעולות מחרוזות. בשילוב SI אפשר להעתיק בלוקים גדולים של זיכרון ביעילות, במיוחד עם REP.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (STOSB):</div>
+      <pre><code>mov di, dst      ; יעד — ES:DI
+mov al, 0xFF     ; ערך למילוי
+mov cx, 8
+cld              ; DF=0
+rep stosb        ; ממלא CX בתים ב-AL החל מ-ES:DI
+      </code></pre>
+
+      <h3>BP — Base Pointer</h3>
+      <table>
+        <tr><th>שם</th><td>BP</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מצביע פריים לניהול משתנים מקומיים</td></tr>
+        <tr><th>הסבר</th><td>BP נותן עוגן יציב לגישה למשתנים מקומיים ולפרמטרים גם כש־SP משתנה במהלך הפונקציה. תבנית פרולוג/אפילוג קלאסית משתמשת ב־BP כדי לשמור מבנה מחסנית קריא ויציב לדיבוג.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (פרולוג/אפילוג):</div>
+      <pre><code>push bp          ; שמירת מצביע הפריים הישן
+mov  bp, sp      ; פריים חדש
+sub  sp, 8       ; הקצאת מקום מקומי
+; ... שימוש ב-[bp-2], [bp-4] ...
+mov  sp, bp      ; אפילוג
+pop  bp
+ret
+      </code></pre>
+
+      <h3>SP — Stack Pointer</h3>
+      <table>
+        <tr><th>שם</th><td>SP</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מצביע מחסנית; דחיפה/שליפה, קריאות/חזרות</td></tr>
+        <tr><th>הסבר</th><td>SP מצביע לראש המחסנית ומשתנה אוטומטית ע"י PUSH/POP, CALL/RET. חשוב לשמור על עקביות של SS:SP כדי למנוע קריסה עקב גישה למחסנית שגויה.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (מחסנית):</div>
+      <pre><code>push ax          ; דוחף ערך (SP-=2)
+pop  bx          ; שולף ערך (SP+=2)
+call func        ; דוחף כתובת חזרה ; CS:IP←func
+ret              ; שולף כתובת חזרה ; CS:IP←[SS:SP]
+      </code></pre-->
+    </section>
+
+    <!-- ===== Special Registers ===== -->
+    <section id="special16" class="section">
+      <h2 class="sticky">רגיסטרים מיוחדים (16‑ביט)</h2>
+
+      <h3 id="IP">IP — Instruction Pointer</h3>
+      <table>
+        <tr><th>שם</th><td>IP</td></tr>
+        <tr><th>גודל</th><td>16 ביט</td></tr>
+        <tr><th>שימוש</th><td>מצביע להוראה הבאה</td></tr>
+        <tr><th>הסבר</th><td>IP מתעדכן אוטומטית בכל הוראה ומצביע להוראה הבאה שתבוצע. לא ניתן לטעון ערך ישירות ל־IP; שינוי נעשה באמצעות קפיצה/קריאה/חזרה — Near משנה IP בלבד, Far משנה גם CS.</td></tr>
+      </table>
+      <div class="example-title">דוגמה:</div>
+      <pre><code>call func        ; דוחף כתובת חזרה ; CS:IP←כתובת func
+; ...
+ret             ; שולף כתובת חזרה ; CS:IP חוזר למתקשר
+      </code></pre>
+    </section>
+
+<!-- ===== Flags ===== -->
+    <section id="Flags" class="section">
+	<h3>FLAGS — דגלי מצב </h3>
+      <table>
+        <tr><th>שם</th><td>FLAGS</td></tr>
+        <tr><th>גודל</th><td>16 ביט (ביטים עיקריים: CF=0, PF=2, AF=4, ZF=6, SF=7, TF=8, IF=9, DF=10, OF=11)</td></tr>
+        <tr><th>שימוש</th><td>שיקוף מצב התוצאה האחרונה וקביעת זרימת ביצוע (Jcc/SETcc)</td></tr>
+        <tr><th>הסבר</th><td>FLAGS מכיל ביטים כגון Zero/Carry/Sign/Overflow/Parity/Aux המעדכנים את מצב התוצאה האריתמטית/הלוגית. הוראות מותנות (Jcc) והוראות מחרוזות (תלויות DF) נשענות עליו, ולכן הבנה של ZF/CF/SF/OF/DF חיונית לתכנות נכון.</td></tr>
+      </table>
+      <div class="example-title">דוגמה:</div>
+      <pre><code>cmp ax, bx       ; מעדכן דגלים לפי ההשוואה
+je  equal_path   ; יקפוץ אם ZF=1 (שוויון)
+      </code></pre>
+	<h3>מילון FLAGS ב־x86 (EFLAGS/RFLAGS)</h3>
+<p>הדגלים נמצאים ברגיסטר EFLAGS/RFLAGS ומשמשים לקביעת מצב המעבד. הטבלה כוללת: שם הדגל, מיקום הביט, משמעות, מתי מתעדכן, ודוגמה לשימוש.</p>
+<table>
+<thead>
+<tr>
+  <th>שם הדגל</th>
+  <th>ביט</th>
+  <th>משמעות</th>
+  <th>מתי מתעדכן</th>
+  <th>דוגמה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><b>CF</b> (Carry Flag)</td>
+  <td>0</td>
+  <td>נשיאה או השאלה בפעולה אריתמטית (ללא סימן)</td>
+  <td>ADD/SUB, ADC/SBB, SHL/SHR</td>
+  <td class="example"><code>mov al,0xFF<br>add al,1 ; CF=1</code></td>
+</tr>
+<tr>
+  <td><b>PF</b> (Parity Flag)</td>
+  <td>2</td>
+  <td>מספר הביטים ב־LSB זוגי → PF=1</td>
+  <td>פעולות אריתמטיות ולוגיות</td>
+  <td class="example"><code>mov al,0x03 ; PF=1</code></td>
+</tr>
+<tr>
+  <td><b>AF</b> (Auxiliary Carry)</td>
+  <td>4</td>
+  <td>נשיאה בין ביט 3 ל־4 (משמש ב־BCD)</td>
+  <td>ADD/SUB, DAA/DAS</td>
+  <td class="example"><code>add al,0x09 ; AF=1</code></td>
+</tr>
+<tr>
+  <td><b>ZF</b> (Zero Flag)</td>
+  <td>6</td>
+  <td>התוצאה אפס → ZF=1</td>
+  <td>ADD/SUB, CMP, AND/XOR</td>
+  <td class="example"><code>cmp eax,eax ; ZF=1</code></td>
+</tr>
+<tr>
+  <td><b>SF</b> (Sign Flag)</td>
+  <td>7</td>
+  <td>סימן התוצאה (MSB)</td>
+  <td>פעולות אריתמטיות ולוגיות</td>
+  <td class="example"><code>mov eax,-1 ; SF=1</code></td>
+</tr>
+<tr>
+  <td><b>OF</b> (Overflow Flag)</td>
+  <td>11</td>
+  <td>Overflow בייצוג Signed</td>
+  <td>ADD/SUB, INC/DEC</td>
+  <td class="example"><code>mov eax,0x7FFFFFFF<br>add eax,1 ; OF=1</code></td>
+</tr>
+<tr>
+  <td><b>DF</b> (Direction Flag)</td>
+  <td>10</td>
+  <td>כיוון בפעולות מחרוזות (0=קדימה, 1=אחורה)</td>
+  <td>CLD/STD</td>
+  <td class="example"><code>cld ; DF=0<br>rep movsb</code></td>
+</tr>
+<tr>
+  <td><b>IF</b> (Interrupt Flag)</td>
+  <td>9</td>
+  <td>מאפשר פסיקות חומרה</td>
+  <td>STI/CLI</td>
+  <td class="example"><code>cli ; IF=0</code></td>
+</tr>
+<tr>
+  <td><b>TF</b> (Trap Flag)</td>
+  <td>8</td>
+  <td>מצב Single-Step לדיבוג</td>
+  <td>משמש בדיבוג</td>
+  <td class="example"><code>; TF=1 → פסיקה אחרי כל הוראה</code></td>
+</tr>
+</tbody>
+</table>
+<p>דגלים נוספים: IOPL, NT, VM, AC, VIF, VIP — משמשים במצבי Protected/Virtualization.</p>
+
+	</section>
+    <!-- ===== Segments ===== -->
+    <section id="segments16" class="section">
+      <h2 class="sticky">סגמנטים קלאסיים (16‑ביט)</h2>
+
+      <h3>CS — Code Segment</h3>
+      <table>
+        <tr><th>שם</th><td>CS</td></tr>
+        <tr><th>שימוש</th><td>סגמנט קוד: בסיס לטעינת הוראות</td></tr>
+        <tr><th>הסבר</th><td>CS קובע את בסיס הכתובת שממנה המעבד מושך הוראות. שינוי CS נעשה ע"י קפיצה/קריאה רחבה (Far) או חזרה; ב־Real Mode הכתובת הפיזית נקבעת לפי CS*16+IP.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (Far Jump):</div>
+      <pre><code>jmp 1234h:0000h  ; משנה CS:IP (קפיצה רחבה)
+      </code></pre>
+
+      <h3>DS — Data Segment</h3>
+      <table>
+        <tr><th>שם</th><td>DS</td></tr>
+        <tr><th>שימוש</th><td>סגמנט נתונים ברירת מחדל</td></tr>
+        <tr><th>הסבר</th><td>גישות נתונים ללא prefix משתמשות ב־DS כדי לקבוע את בסיס הכתובת. טעינת DS נעשית ע"י העברת ערך מתאים ל־AX ואז כתיבה ל־DS — ומאותו רגע ה־offsetים יפורשו יחסית ל־DS.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (טעינת DS):</div>
+      <pre><code>mov ax, data_seg ; ערך סגמנט מתאים
+mov ds, ax       ; DS←data_seg
+mov bx, 0010h
+mov al, [bx]     ; קורא DS:0010h
+      </code></pre>
+
+      <h3>SS — Stack Segment</h3>
+      <table>
+        <tr><th>שם</th><td>SS</td></tr>
+        <tr><th>שימוש</th><td>סגמנט מחסנית לפעולות PUSH/POP/CALL/RET</td></tr>
+        <tr><th>הסבר</th><td>SS מגדיר את בסיס המחסנית יחד עם SP. שינוי SS דורש זהירות (מומלץ לנטרל פסיקות לזמן קצר) כדי להימנע מאי־עקביות בזמן גישות למחסנית.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (אתחול מחסנית):</div>
+      <pre><code>cli              ; נטרול פסיקות
+mov ax, stack_seg
+mov ss, ax       ; SS←stack_seg
+mov sp, 7FF0h    ; מצביע מחסנית
+osti              ; החזרת פסיקות
+      </code></pre>
+
+      <h3>ES — Extra Segment</h3>
+      <table>
+        <tr><th>שם</th><td>ES</td></tr>
+        <tr><th>שימוש</th><td>יעד לפקודות מחרוזות (MOVS/STOS)</td></tr>
+        <tr><th>הסבר</th><td>בהוראות מחרוזות, DS:SI מצביע למקור ו־ES:DI מצביע ליעד. לכן טעינת ES לסגמנט יעד הנכון קריטית לפני פעולות העתקה או מילוי.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (העתקה):</div>
+      <pre><code>mov ax, dst_seg
+mov es, ax       ; ES←dst_seg
+mov si, src_off  ; מקור — DS:SI
+mov di, dst_off  ; יעד — ES:DI
+cld              ; DF=0 — נוע קדימה
+rep movsb        ; העתקה מ-DS:SI ל-ES:DI
+      </code></pre>
+    </section>
+
+    <!-- ===== Addressing ===== -->
+    <!--section id="addressing16" class="section">
+      <h2>מודל כתובות ב־Real Mode (16‑ביט)</h2>
+      <p>ב־Real Mode כתובת פיזית מחושבת לפי <code>Physical = Segment * 16 + Offset</code>. כלומר, הסגמנט מגדיר בסיס מיושר ל־16 בתים, וה־offset מוסיף את ההיסט בתוך הסגמנט. צורות כתובת אפקטיבית נתמכות: <code>[BX+SI+disp]</code>, <code>[BX+DI+disp]</code>, <code>[BP+SI+disp]</code>, <code>[BP+DI+disp]</code>, וכן וריאנטים עם רגיסטר יחיד והיסט.</p>
+      <div class="example-title">דוגמה (חישוב כתובת):</div>
+      <pre><code>mov ax, data_seg ; בסיס סגמנט נתונים
+mov ds, ax
+mov bx, table    ; BX←offset לתחילת הטבלה
+mov al, [bx+2]   ; קורא איבר לפי היסט בתוך DS
+      </code></pre>
+    </section-->
+
+    <!-- ===== Jcc ===== -->
+    <!--section id="jcc16" class="section">
+      <h2>טבלת Jcc (קפיצות מותנות) — 16‑ביט</h2>
+      <p>הוראות Jcc בוחנות את דגלי המצב ב־FLAGS כדי לקבוע אם לבצע קפיצה. יש להבחין בין תנאים <strong>ללא סימן</strong> (CF/ZF) לבין תנאים <strong>עם סימן</strong> (SF/OF).</p>
+      <table>
+        <tr><th>שם</th><th>תנאי דגלים</th><th>הסבר</th></tr>
+        <tr><td>JE / JZ</td><td>ZF=1</td><td>קפיצה אם התוצאה אפס (שוויון).</td></tr>
+        <tr><td>JNE / JNZ</td><td>ZF=0</td><td>קפיצה אם לא אפס (אי־שוויון).</td></tr>
+        <tr><td>JA / JNBE</td><td>CF=0 && ZF=0</td><td>גדול (Unsigned): ללא נשיאה וללא שוויון.</td></tr>
+        <tr><td>JAE / JNB</td><td>CF=0</td><td>גדול־שווה (Unsigned): אין נשיאה.</td></tr>
+        <tr><td>JB / JNAE</td><td>CF=1</td><td>קטן (Unsigned): הייתה נשיאה.</td></tr>
+        <tr><td>JBE / JNA</td><td>CF=1 || ZF=1</td><td>קטן־שווה (Unsigned): נשיאה או שוויון.</td></tr>
+        <tr><td>JL / JNGE</td><td>SF != OF</td><td>קטן (Signed): סימן לא עקבי עם Overflow.</td></tr>
+        <tr><td>JLE / JNG</td><td>ZF=1 || SF != OF</td><td>קטן־שווה (Signed).</td></tr>
+        <tr><td>JG / JNLE</td><td>ZF=0 && SF == OF</td><td>גדול (Signed): אין שוויון והסימן עקבי.</td></tr>
+        <tr><td>JGE / JNL</td><td>SF == OF</td><td>גדול־שווה (Signed).</td></tr>
+        <tr><td>JO / JNO</td><td>OF=1 / OF=0</td><td>גלישה/אין גלישה.</td></tr>
+        <tr><td>JS / JNS</td><td>SF=1 / SF=0</td><td>סיבית הסימן: שלילי/לא שלילי.</td></tr>
+        <tr><td>JP / JPE</td><td>PF=1</td><td>Parity Even.</td></tr>
+        <tr><td>JNP / JPO</td><td>PF=0</td><td>Parity Odd.</td></tr>
+        <tr><td>JC / JNC</td><td>CF=1 / CF=0</td><td>נשיאה/אין נשיאה.</td></tr>
+      </table>
+      <div class="example-title">דוגמה (Signed מול Unsigned):</div>
+      <pre><code>mov ax, 0FFFFh   ; -1 ב-Signed, 65535 ב-Unsigned
+mov bx, 1
+cmp ax, bx
+ja  unsigned_above  ; CF=0 && ZF=0 ? כאן CF=1 → לא יקפוץ (Unsigned)
+jl  signed_less     ; SF!=OF ? כאן SF=1, OF=0 → יקפוץ (Signed)
+      </code></pre>
+      <div class="example-title">דוגמה (שוויון/אי־שוויון):</div>
+      <pre><code>cmp ax, bx
+je  equal_path   ; ZF=1 → שווים
+jne not_equal    ; ZF=0 → לא שווים
+      </code></pre>
+    </section-->
+
+    <!-- ===== Cheatsheet 16-bit ===== -->
+    <!--section id="cheatsheet16" class="section">
+      <h2>פקודות נפוצות — גרסת 16‑ביט (Real Mode)</h2>
+
+      <h3>MOV / LEA</h3>
+      <p><strong>MOV</strong> מעביר אופראנד אל יעד; <strong>LEA</strong> טוען כתובת אפקטיבית (ללא גישה לזיכרון).</p>
+      <pre><code>mov ax, 1234h      ; העתקה לרגיסטר
+mov [var], ax      ; כתיבה לזיכרון (DS בסיס)
+lea bx, [table+4]  ; טוען offset (לא קורא זיכרון)
+      </code></pre>
+
+      <h3>ADD / ADC, SUB / SBB, INC / DEC, NEG, CMP</h3>
+      <pre><code>add ax, 5          ; חיבור — מעדכן ZF/SF/OF/CF
+adc ax, 0          ; חיבור עם נשיאה — מוסיף CF
+sub ax, 1          ; חיסור — CF=Borrow ללא סימן
+sbb ax, 0          ; חיסור עם Borrow — מפחית CF
+inc cx             ; פלוס 1 — אינו משנה CF
+dec cx             ; מינוס 1 — אינו משנה CF
+neg dx             ; סימון שלילי: DX ← 0 − DX ; CF=1 אם DX≠0
+cmp ax, bx         ; השוואה — מעדכן דגלים בלבד
+      </code></pre>
+<h4>ADD — חיבור</h4>
+  <p><b>משמעות:</b> מוסיף מקור ליעד. מעדכן ZF/CF/SF/OF בהתאם לתוצאה.</p>
+  <div class=\"two-col\">
+    <div>
+      <pre class=\"state\"><b>רגיסטרים (דוגמה Overflow חתום):</b>
+; לפני: 
+ 
+ EAX=0x7FFFFFFD
+add eax, 5
+; אחרי: 
+ EAX=0x80000002
+Flags: ZF=0, CF=0, SF=1 (MSB=1), OF=1 (עברנו לטווח שלילי Signed)</pre>
+    </div>
+    <div>
+      <pre class=\"state\"><b>זיכרון:</b>
+sum dd 10
+; לפני: 
+ 
+ [sum]=10
+add dword [sum], 3
+; אחרי: 
+ [sum]=13
+Flags: לפי התוצאה (כאן ZF=0, CF=0, OF=0)</pre>
+    </div>
+  </div>
+
+  <h4>ADC — חיבור עם Carry</h4>
+  <p><b>משמעות:</b> כמו ADD אך מוסיף גם את CF (לחיבור רב‑מילים).</p>
+  <div class=\"two-col\">
+    <div>
+      <pre class=\"state\"><b>רגיסטרים:</b>
+; לפני: 
+ 
+ RDX=0, RBX=1, CF=1
+adc rdx, rbx
+; אחרי: 
+ RDX=2 (0+1+1)
+Flags: CF=0, ZF=0, OF=0</pre>
+    </div>
+    <div>
+      <pre class=\"state\"><b>זיכרון (חיבור 64‑ביט):</b>
+big_lo dq 0xFFFFFFFFFFFFFFFF
+; לפני: 
+ 
+ [big_lo]=0xFFFF... , RAX=1, CF=0
+adc qword [big_lo], rax
+; אחרי: 
+ [big_lo]=0x0000000000000000, CF=1 (נוצר Carry)
+ZF=1 כי התוצאה 0</pre>
+    </div>
+  </div>
+
+  <h4>SUB — חיסור</h4>
+  <p><b>משמעות:</b> מחסר מקור מיעד. CF=1 אם נוצר Borrow (ללא סימן).</p>
+  <div class=\"two-col\">
+    <div>
+      <pre class=\"state\"><b>רגיסטרים:</b>
+; לפני: 
+ 
+ EAX=0
+sub eax, 1
+; אחרי: 
+ EAX=0xFFFFFFFF
+Flags: CF=1 (Borrow), ZF=0, SF=1, OF=0</pre>
+    </div>
+    <div>
+      <pre class=\"state\"><b>זיכרון:</b>
+cnt db 0x00
+; לפני: 
+ 
+ [cnt]=0x00
+sub byte [cnt], 1
+; אחרי: 
+ [cnt]=0xFF
+Flags: CF=1, ZF=0, SF=1</pre>
+    </div>
+  </div>
+
+  <h4>SBB — חיסור עם Borrow</h4>
+  <p><b>משמעות:</b> כמו SUB אך מחסר גם את CF (מועיל בחיסור רב‑מילים).</p>
+  <div class=\"two-col\">
+    <div>
+      <h3>AND / OR / XOR / NOT, TEST</h3>
+      <pre><code>and ax, 0FFh       ; מסיכה — ZF/SF מעודכנים
+or  al, 1          ; קובע ביט
+xor bx, bx         ; מאפס רגיסטר — ZF=1
+not ax             ; הופך את כל הביטים
+test ax, ax        ; בדיקת אפס בלי שינוי יעד — ZF מעודכן
+      </code></pre>
+
+      <h3>SHL/SAL, SHR, SAR, ROL/ROR</h3>
+      <pre><code>mov cl, 1          ; מספר הזזות
+shl ax, cl         ; הזזה שמאלה — CF מקבל את הביט שיצא
+sar ax, 1          ; הזזה אריתמטית ימינה — שומר סימן
+ror al, 1          ; סיבוב ימינה — הביט LSB נכנס ל-MSБ
+      </code></pre>
+
+      <h3>PUSH / POP, CALL / RET (Near/Far), INT / IRET</h3>
+      <pre><code>push ax            ; SP-=2 ; [SS:SP]←AX
+pop  bx            ; BX←[SS:SP] ; SP+=2
+call func          ; Near: דוחף IP ; IP←func
+ret                ; שולף IP ; חזרה
+jmp  1234h:0000h   ; Far: משנה CS:IP
+int  10h           ; קריאה ל-BIOS (דוגמה)
+iret               ; חזרה מפסיקה — משחזר FLAGS/CS:IP
+      </code></pre>
+
+      <h3>פקודות מחרוזות (REP MOVS/STOS/CMPS/LODS) ו־DF</h3>
+      <pre><code>mov si, src        ; מקור — DS:SI
+mov di, dst        ; יעד — ES:DI
+mov cx, 16         ; מספר בתים
+cld                ; DF=0 — ננוע קדימה
+rep movsb          ; העתקה של CX בתים
+std                ; DF=1 — ננוע אחורה
+rep stosb          ; מילוי לאחור (אם DF=1)
+      </code></pre>
+
+      <h3>MUL / IMUL, DIV / IDIV (16‑ביט)</h3>
+      <pre><code>; MUL 8‑ביט: AL×src → AX
+mov al, 12
+mov bl, 10
+mul bl             ; AX=120
+
+; MUL 16‑ביט: AX×src → DX:AX
+mov ax, 1000
+mov bx, 25
+mul bx             ; DX:AX=25000 (DX=0, AX=25000)
+
+; DIV 16‑ביט: DX:AX / src → 商=AX, שארית=DX
+mov dx, 0
+mov ax, 200
+mov bx, 9
+div bx             ; AX=22, DX=2
+      </code></pre>
+    </section-->
+	
+	
+	
+<!-- ===== סיכום פקודות אריתמטיות ===== -->
+<section id="arith16" class="section">
+  <h2 class="sticky">פקודות אריתמטיות</h2>
+  <h3 id="ADD">ADD — חיבור</h3>
+  <p><strong>ADD</strong> מוסיפה את ערך המקור אל יעד ושומרת את התוצאה ביעד. הפקודה מעדכנת את הדגלים: <strong>ZF</strong> (אפס), <strong>SF</strong> (סימן), <strong>CF</strong> (נשיאה בלא‑סימן), <strong>OF</strong> (גלישת Signed) ו‑<strong>AF</strong> (Auxiliary Carry בבייט נמוך). היא שימושית לספירה, הצטברות, וחיבור כתובות/אופסטים.</p>
+  <pre><code>mov ax, 5           ; ערך בסיס
+add ax, 3           ; AX=8 ; ZF=0 ; SF=0 ; CF=0 ; OF=0
+
+; דוגמת Overflow (Signed):
+mov ax, 7FFFh       ; +32767 (Signed מקסימלי)
+add ax, 1           ; AX=8000h → שלילי בסימן
+                    ; OF=1 (גלישה ב-Signed), CF=0 (בלא-סימן אין נשיאה)
+                    ; ZF=0, SF=1
+
+; דוגמת נשיאה (Unsigned):
+mov ax, 0FFFFh      ; 65535 (Unsigned מקסימלי)
+add ax, 1           ; AX=0000h
+                    ; CF=1 (נשיאה), ZF=1 (תוצאה אפס), OF=0 (לא רלוונטי ל-Unsigned)
+</code></pre>
+
+  <h3 id="SUB">SUB — חיסור</h3>
+  <p><strong>SUB</strong> מחסרת את ערך המקור מן היעד ושומרת את התוצאה ביעד. הפקודה מעדכנת את הדגלים: <strong>ZF</strong>, <strong>SF</strong>, <strong>CF</strong> (Borrow בלא‑סימן), <strong>OF</strong> (גלישת Signed) ו‑<strong>AF</strong>. חשוב להבדיל בין Borrow (CF=1 ב‑Unsigned כשאין מספיק) לבין Overflow (OF=1 ב‑Signed כאשר התוצאה לא ניתנת לייצוג בתחום).</p>
+  <pre><code>mov ax, 9
+sub ax, 4           ; AX=5 ; ZF=0 ; SF=0 ; CF=0 ; OF=0
+
+; Borrow ב-Unsigned:
+mov ax, 0           ; 0 (Unsigned)
+sub ax, 1           ; AX=FFFFh → 65535 (Wraparound)
+                    ; CF=1 (Borrow), ZF=0, SF=1, OF=0
+
+; גלישה ב-Signed:
+mov ax, 8000h       ; -32768 (Signed)
+sub ax, 1           ; AX=7FFFh → +32767
+                    ; OF=1 (גלישה ב-Signed), CF=0 (בלא-סימן לא נדרש Borrow)
+</code></pre>
+
+  <h3>הערות שימושיות</h3>
+  <ul>
+    <li>ב‑x86, ל‑<strong>INC/DEC</strong> אין שינוי ל‑CF, אך ל‑<strong>ADD/SUB</strong> כן — חשוב כשבונים אריתמטיקה רב‑מילתית (Multi‑precision).</li>
+    <li>לבדיקת תוצאות: <strong>ZF</strong> לשוויון/אפס, <strong>CF</strong> לנשיאה/השאלה בלא‑סימן, <strong>OF</strong> לגלישה ב‑Signed, <strong>SF</strong> לסימן (MSB של התוצאה).</li>
+    <li>במקרה של הצטברות ארוכה (למשל חיבור מספרים גדולים), השתמש ב‑<code>ADC</code> אחרי <code>ADD</code> כדי לצרף נשיאה מהחיבור הקודם.</li>
+  </ul>
+
+
+  <h3 id="INC">INC — הגדלה ב-1</h3>
+  <p><strong>INC</strong> מגדילה את הערך באופראנד ב-1. היא אינה משנה את דגל CF, אך כן מעדכנת ZF, SF, OF בהתאם לתוצאה. שימושית בלולאות ובמונים.</p>
+  <pre><code>mov ax, 0FFFFh    ; AX=-1 ב-Signed
+inc ax            ; AX=0 ; ZF=1 ; OF=0 ; CF לא משתנה
+</code></pre>
+
+  <h3 id="DEC">DEC — הקטנה ב-1</h3>
+  <p><strong>DEC</strong> מקטינה את הערך באופראנד ב-1. גם כאן CF לא משתנה, אך ZF, SF, OF מתעדכנים. שימושי להקטנת מונים בלולאות.</p>
+  <pre><code>mov cx, 1
+dec cx            ; CX=0 ; ZF=1 ; OF=0 ; CF לא משתנה
+</code></pre>
+
+  <h3 id="MUL">MUL — כפל ללא סימן</h3>
+  <p><strong>MUL</strong> מבצע כפל ללא סימן. אם האופראנד הוא 8 ביט, AL מוכפל והפלט ב-AX. אם האופראנד 16 ביט, AX מוכפל והפלט ב-DX:AX. CF ו-OF נקבעים אם החלק הגבוה אינו אפס.</p>
+  <pre><code>; MUL 16 ביט: AX × src → DX:AX
+mov ax, 1000
+mov bx, 25
+mul bx            ; DX:AX=25000 ; CF/OF=0 כי DX=0
+</code></pre>
+
+  <h3 id="IMUL">IMUL — כפל עם סימן</h3>
+  <p><strong>IMUL</strong> דומה ל-MUL אך מתחשב בסימן. התוצאה נשמרת ב-DX:AX, ודגלי CF/OF נקבעים אם יש גלישה. שימושי בחישובים Signed.</p>
+  <pre><code>mov ax, -10       ; ב-Signed: 0FFF6h
+mov bx, 20
+imul bx           ; DX:AX=-200 ; CF/OF=0
+</code></pre>
+
+  <h3 id="DIV">DIV — חילוק ללא סימן</h3>
+  <p><strong>DIV</strong> מחלק ללא סימן. בדיבידנד 16 ביט, DX:AX מחולק באופראנד. AX מקבל את המנה, DX את השארית. אם המחלק אפס או Overflow — חריגה.</p>
+  <pre><code>mov dx, 0
+mov ax, 200
+mov bx, 9
+div bx            ; AX=22 ; DX=2
+</code></pre>
+
+  <h3 id="IDIV">IDIV — חילוק עם סימן</h3>
+  <p><strong>IDIV</strong> כמו DIV אך מתחשב בסימן. לפני חילוק 16 ביט יש להרחיב את AX ל-DX:AX עם <code>CWD</code> כדי לשמור על סימן נכון.</p>
+  <pre><code>mov ax, -200
+cwd               ; מרחיב AX ל-DX:AX עם סימן
+mov bx, 9
+idiv bx           ; AX=-22 ; DX=-2
+</code></pre>
+
+  <h3 id="NEG">NEG — סימון 	</h3>
+  <p><strong>NEG</strong> מבצע 0 − אופראנד. אם האופראנד היה אפס, CF=0; אחרת CF=1. שימושי להיפוך סימן במספרים Signed.</p>
+  <pre><code>mov ax, 5
+neg ax            ; AX=-5 ; CF=neg ax            ; AX=-5 ; CF=1 כי AX≠0
+</code></pre>
+
+	
+<!-- ===== סיכום JMP / CMP / LOOP / END ===== -->
+<section id="flow16" class="section">
+  <h2 class="sticky">זרימת ביצוע — JMP, CMP, LOOP, END (16‑ביט)</h2>
+
+  <!-- JMP -->
+  <h3 id="JMP">JMP — קפיצה בלתי מותנית</h3>
+  <p><strong>JMP</strong> משנה מיד את רצף הביצוע ע"י עדכון מצביע ההוראות לכתובת היעד.
+     ב־Real Mode קיימות שתי צורות עיקריות: <em>Near</em> (משנה רק IP בתוך אותו CS) ו־<em>Far</em> (משנה גם CS וגם IP).
+     קפיצה יכולה להיות יחסית (יחסית למיקום הנוכחי), מוחלטת (לכתובת מדויקת), או עקיפה דרך רגיסטר/זיכרון.</p>
+  <pre><code>; Near jump יחסית — בתוך אותו CS
+jmp short SKIP       ; קופץ קדימה לכינוי SKIP (עד טווח קצר)
+; או מוחלט בתוך הסגמנט (אסמבלר/סינטקס בהתאם)
+
+; Far jump — משנה גם CS וגם IP (זהירות: משנה הקשר סגמנטלי)
+jmp 1234h:0000h      ; CS←1234h, IP←0000h
+
+; קפיצה עקיפה דרך זיכרון/רגיסטר (Near)
+mov bx, OFFSET label
+jmp bx               ; IP←BX (באותו CS)
+
+SKIP:
+; ... המשך קוד ...
+  </code></pre>
+
+  <!-- CMP -->
+  <h3 id="CMP">CMP — השוואה (SUB בלי לשמור תוצאה)</h3>
+  <p><strong>CMP</strong> מחשבת למעשה <code>יעד − מקור</code> כדי לעדכן דגלים בלבד מבלי לשנות את האופרנדים.
+     לאחר CMP ניתן להשתמש בקפיצות מותנות (Jcc) לפי הדגלים: <strong>ZF</strong> לשוויון, <strong>CF</strong> ליחסי גודל ללא‑סימן,
+     ו־<strong>SF/OF</strong> להשוואות עם סימן. חשוב לזכור ש־CMP לא שומר את התוצאה, אלא רק קובע את הדגלים ל־Jcc הבא.</p>
+  <pre>
+  <code>mov ax, 5
+mov bx, 7
+cmp ax, bx           ; 5-7 → ZF=0, CF=1 (Unsigned: AX&lt;;BX), SF/OF בהתאם
+jb  less_unsigned    ; יקפוץ אם CF=1 (AX&lt;BX ללא-סימן)
+jl  less_signed      ; יקפוץ אם SF!=OF (AX&lt;BX עם סימן)
+
+; השוואה לשוויון:
+cmp ax, 5
+je  equal_path       ; יקפוץ אם ZF=1 (שווים)
+  </code>
+  </pre>
+
+  <!-- LOOP -->
+  <h3 id="LOOP">LOOP — לולאה לפי CX</h3>
+  <p><strong>LOOP</strong> מפחיתה את CX ב־1 ואם CX עדיין אינו אפס — קופצת לתווית היעד.
+     זו דרך קצרה לבנות לולאות ספירה בלי CMP/Jcc מפורשים, אך יש לזכור שהיא תלויה ב־CX בלבד.
+     קיימות גם וריאציות (LOOPE/LOOPZ, LOOPNE/LOOPNZ) הבוחנות גם את ZF, אך כאן נתמקד ב־LOOP הפשוטה.</p>
+  <pre><code>mov cx, 3
+L_REPEAT:
+  ; ... קוד כלשהו ...
+  loop L_REPEAT      ; CX←CX-1 ; קפיצה אם CX!=0
+
+; דוגמה עם עבודה על מערך (DS בסיס, DI אינדקס יעד):
+mov cx, LENGTH       ; מספר איברים
+mov si, src          ; מקור — DS:SI
+mov di, dst          ; יעד — ES:DI
+cld                  ; DF=0 — נוע קדימה
+L_COPY:
+  movsb              ; מעתיק בייט אחד מ-DS:SI ל-ES:DI
+  loop L_COPY        ; חוזר עד CX=0
+  </code></pre>
+
+  <!-- END -->
+  <h3 id="END">END — סיום מודול/תוכנית (פסאודו־פקודה של האסמבלר)</h3>
+  <p><strong>END</strong> איננה הוראת מעבד אלא <em>פסאודו־פקודה</em> של האסמבלר שמסמנת לאסמבלר את סוף המקור.
+     לעיתים מציינים אחריה תווית נקודת־כניסה (Entry Point) כדי להגדיר למקשר/טוען מהי ההתחלה (למשל <code>END START</code>).
+     בזמן ריצה המעבד לא “רואה” את END; לסיום תוכנית ב־DOS משתמשים בדרך כלל ב־INT 21h/4Ch.</p>
+  <pre><code>org 100h           ; COM program
+START:
+  ; ... ק  ; ... קוד ...
+  mov ax, 4C00h     ; שירות 4Ch — Terminate Process
+  int 21h
+END START           ; סוף הקובץ והגדרת נקודת כניסה למקשר/טעינה
+  </code></pre>
+</section>
+	
+  </main>
+
+  <footer>
+    עודכן אוטומטית — גרסה ממוקדת ל־x86 16‑ביט (Real Mode)
+  </footer>
+</body>
+</html>
